@@ -1,0 +1,258 @@
+#include<stdio.h>
+#include<graphics.h>
+#include<conio.h>
+#include<stdlib.h>
+#include<windows.h>
+//下面两个是播放多媒体接口
+#include<mmsystem.h>
+#pragma comment(lib,"winmm.lib")
+
+#define SNAKE_NUM 500//蛇的最大节数
+//#define HEIGHT 480
+//#define WIDTH 640
+
+enum DIR	//初始化方向
+{
+	UP, DOWN, RIGHT, LEFT
+};
+struct Snake
+{
+	int size;//蛇的节数
+	int dir;//蛇的方向
+	int speed;//蛇的速度
+	POINT coor[SNAKE_NUM];//坐标
+}snake;
+//食物结构
+struct Food
+{
+	int x;
+	int y;
+	int r;	//食物大小
+	bool flag;	//食物是否被吃
+	DWORD color;	//食物颜色
+}food;
+enum Around
+{
+	Around_Up = 0,
+	Around_Down = 480,
+	Around_Right = 640,
+	Around_Left = 0
+
+};
+//数据的初始化
+void GameInit()
+{
+	//播放背景音乐
+	mciSendString(_T("open ./res/snake_bgm.mp3"), NULL, 0, NULL);
+	mciSendString(_T("play ./res/snake_bgm.mp3"), NULL, 0, NULL);
+	//init 初始化graph图像窗口
+	initgraph(640, 480);
+	//设置随机数种子  
+	//GetTickCount()获取系统开机到现在经过的毫秒数
+	srand(GetTickCount());
+	//初始化蛇
+	snake.size = 3;
+	snake.speed = 10;
+	snake.dir = RIGHT;
+	for (int i = 0; i < snake.size; i++)
+	{
+		snake.coor[i].x = 40 - i * 10;
+		snake.coor[i].y = 10;
+	}
+	//初始化食物
+	food.x = rand() % 635;
+	food.y = rand() % 475;
+	food.color = RGB(rand() % 256, rand() % 256, rand() % 256);
+	food.r = rand() % 10 + 5;
+	food.flag = true;
+}
+void GameDraw()
+{
+	//双缓冲绘图，防止闪屏
+	BeginBatchDraw();
+	//设置背景颜色
+	setbkcolor(RGB(28, 115, 119));
+	cleardevice();
+	
+	//绘制蛇
+	setfillcolor(YELLOW);
+	for (int i = 0; i < snake.size; i++)
+	{
+		solidcircle(snake.coor[i].x, snake.coor[i].y, 5);
+	}
+	//绘制食物
+	if (food.flag) {
+		setfillcolor(food.color);
+		solidcircle(food.x, food.y, food.r);
+	}
+
+	EndBatchDraw();
+}
+//移动蛇
+void snakeMove()
+{
+	//移动坐标发生改变
+	//snake.coor[0].x++; 
+	for (int i = snake.size - 1; i > 0; i--)
+	{
+		snake.coor[i] = snake.coor[i - 1];
+	}
+	switch (snake.dir)
+	{
+	case UP:
+		snake.coor[0].y-= snake.speed;
+		if (snake.coor[0].y - 5 <= Around_Up)
+			snake.coor[0].y = Around_Down;
+		break;
+	case DOWN:
+		snake.coor[0].y+= snake.speed;
+		if (snake.coor[0].y + 5 >= Around_Down)
+			snake.coor[0].y = Around_Up;
+		break;
+	case LEFT:
+		snake.coor[0].x-= snake.speed;
+		if (snake.coor[0].x - 5 <= Around_Left)
+			snake.coor[0].x = Around_Right;
+		break;
+	case RIGHT:
+		snake.coor[0].x+= snake.speed;
+		if (snake.coor[0].x + 5 >= Around_Right)
+			snake.coor[0].x = Around_Left;
+		break;
+	}
+	
+}
+//通过按键改变蛇的移动方向
+void keyControl()
+{
+	//判断有没有按键，如果有，返回真
+	if (_kbhit())
+	{
+		//72 80 75 77 上下左右键值
+		switch (_getch())
+		{
+		case 'w':
+		case 'W':
+		case '72':
+			//改变方向
+			if(snake.dir != DOWN)
+			snake.dir = UP;
+			break;
+		case 's':
+		case 'S':
+		case '80':
+			if (snake.dir != UP)
+			snake.dir = DOWN;
+			break;
+		case 'A':
+		case 'a':
+		case '75':
+			if (snake.dir != RIGHT)
+			snake.dir = LEFT;
+			break;
+		case 'd':
+		case 'D':
+		case '77':
+			if (snake.dir != LEFT)
+			snake.dir = RIGHT;
+			break;
+		case ' ':
+			while (1) {
+				if (_getch() != ' ')
+					return ;
+			}
+			break;
+		}
+	}
+	
+}
+void EatFood()
+{	
+	//settextstyle(40, 0, _T("宋体"));
+	//settextcolor(WHITE);
+
+	if (food.flag && 
+		snake.coor[0].x >= food.x-food.r && snake.coor[0].x <= food.x+food.r &&
+		snake.coor[0].y >= food.y-food.r && snake.coor[0].y <= food.y+food.r) 
+	{
+		food.flag = false;
+		snake.size++;
+	}
+	//食物消失，重新生成
+	if (!food.flag) {
+		food.x = rand() % 635;
+		food.y = rand() % 475;
+		food.color = RGB(rand() % 256, rand() % 256, rand() % 256);
+		food.r = rand() % 10 + 5;
+		food.flag = true;
+	}
+	//int tx = (getwidth() - textwidth(_T("淼捷Love"))) / 2;
+	//outtextxy(tx, 50, _T("淼捷Love"));
+}
+//菜单
+void menu()
+{
+	system("color 3");
+	printf("=======================================\n");
+	printf("==============贪吃蛇SNAKE==============\n");
+	printf("=======================================\n");
+	printf("=============1.开始游戏================\n");
+	printf("=======================================\n");
+	printf("=============2.退出游戏================\n");
+	printf("=======================================\n");
+	printf("=============版本v1.0==================\n");
+	printf("=======================================\n");
+	printf("=======================================\n");
+}
+
+int main(void) {
+	system("color 3");
+	int mode;  //统计用时
+	char select;
+	menu();
+	printf("请输入你的选择：\n");
+	scanf_s(" %c", &select,2);
+	if (select == 49) {
+		system("cls");
+		printf("正在进入游戏......\n");
+		//system("cls&&pause");//清空屏幕暂停
+		//printf("请选择你的模式：\n");
+		//printf("1--简单模式：\n");
+		//printf("2--正常模式：\n");
+		//printf("3--困难模式：\n");
+		//printf("4--地狱模式：\n");
+		//scanf_s(" %d", &mode);
+		//switch (mode)
+		//{
+		//case 1:
+		//	Sleep(220);
+		//	break;
+		//case 2:
+		//	Sleep(170);
+		//	break;
+		//case 3:
+		//	Sleep(140);
+		//	break;
+		//case 4:
+		//	Sleep(90);
+		//	break;
+		//}
+		GameInit();
+		while (1)
+		{
+			keyControl();
+			snakeMove();
+			GameDraw();
+			EatFood();
+			Sleep(120);
+			
+		}
+	}
+	else if (select == 50)
+	{
+		printf("正在退出游戏......\n");
+		Sleep(2000);
+	}
+	
+	return 0;
+}
